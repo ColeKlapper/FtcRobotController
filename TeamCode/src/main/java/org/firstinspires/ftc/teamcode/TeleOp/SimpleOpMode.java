@@ -12,9 +12,9 @@ public class SimpleOpMode extends LinearOpMode {
         final double DRIVE_SPEED = 1.0;
 
         // Hardware
-        DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorFour");
-        DcMotor leftBackDrive = hardwareMap.get(DcMotor.class, "driveMotorOne");
-        DcMotor rightFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorThree");
+        DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorThree");
+        DcMotor leftBackDrive = hardwareMap.get(DcMotor.class, "driveMotorFour");
+        DcMotor rightFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorOne");
         DcMotor rightBackDrive = hardwareMap.get(DcMotor.class, "driveMotorTwo");
 
         // Motor settings
@@ -36,15 +36,15 @@ public class SimpleOpMode extends LinearOpMode {
 
         while (opModeIsActive()) {
             // Movement code
-            double y = -gamepad1.left_stick_y;
-            double x = gamepad1.left_stick_x * 1.1;
-            double rx = gamepad1.right_stick_x;
+            double leftStickY = -gamepad1.left_stick_y;
+            double leftStickX = gamepad1.left_stick_x * 1.1;
+            double rightStickX = gamepad1.right_stick_x;
 
-            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
-            double leftFrontMotorPower = (y + x + rx) / denominator;
-            double leftBackMotorPower = (y - x + rx) / denominator;
-            double rightFrontMotorPower = (y - x - rx) / denominator;
-            double rightBackMotorPower = (y + x - rx) / denominator;
+            double denominator = Math.max(Math.abs(leftStickY) + Math.abs(leftStickX) + Math.abs(rightStickX), 1);
+            double leftFrontMotorPower = (leftStickY + leftStickX + rightStickX) / denominator;
+            double leftBackMotorPower = (leftStickY - leftStickX + rightStickX) / denominator;
+            double rightFrontMotorPower = (leftStickY - leftStickX - rightStickX) / denominator;
+            double rightBackMotorPower = (leftStickY + leftStickX - rightStickX) / denominator;
 
             // Motor power
             leftFrontDrive.setPower(leftFrontMotorPower * DRIVE_SPEED);
