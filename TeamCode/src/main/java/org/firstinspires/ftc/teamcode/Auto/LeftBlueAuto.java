@@ -4,7 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 @com.qualcomm.robotcore.eventloop.opmode.Autonomous
-public class SimpleAuto extends LinearOpMode {
+public class LeftBlueAuto extends LinearOpMode {
     @Override
     public void runOpMode() {
         final double MOTOR_POWER = 0.35;
@@ -41,7 +41,7 @@ public class SimpleAuto extends LinearOpMode {
         leftFrontDrive.setPower(MOTOR_POWER);
 
         movement = new Movement(leftFrontDrive, rightFrontDrive,
-                                leftBackDrive, rightBackDrive);
+                leftBackDrive, rightBackDrive);
 
         // Telemetry Initialization
         telemetry.addData("Status", "Initialized");
@@ -49,6 +49,6 @@ public class SimpleAuto extends LinearOpMode {
 
         waitForStart();
 
-        movement.moveForward(2.5);
+        movement.shuffleRight(1);
     }
 }

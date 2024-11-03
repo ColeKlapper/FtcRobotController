@@ -1,9 +1,11 @@
 package org.firstinspires.ftc.teamcode.Auto;
 
-import static java.lang.Thread.sleep;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 public class Movement {
+    private final double PULSES = 480;
+    private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
+    private final double PULSES_PER_METER = PULSES / WHEEL_CIRCUMFERENCE_METERS;
     private DcMotor leftFront;
     private DcMotor rightFront;
     private DcMotor leftBack;
@@ -16,7 +18,9 @@ public class Movement {
         this.rightBack = rightBack;
     }
 
-    public final void moveForward(int distance) {
+    public final void moveForward(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() + distance;
         int rightFrontTarget = rightFront.getCurrentPosition() + distance;
         int leftBackTarget = leftBack.getCurrentPosition() + distance;
@@ -25,7 +29,9 @@ public class Movement {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void moveBackward(int distance) {
+    public final void moveBackward(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() - distance;
         int rightFrontTarget = rightFront.getCurrentPosition() - distance;
         int leftBackTarget = leftBack.getCurrentPosition() - distance;
@@ -34,7 +40,9 @@ public class Movement {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void pivotLeft(int distance) {
+    public final void pivotLeft(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() - distance;
         int rightFrontTarget = rightFront.getCurrentPosition() - distance;
         int leftBackTarget = leftBack.getCurrentPosition() + distance;
@@ -43,7 +51,9 @@ public class Movement {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void pivotRight(int distance) {
+    public final void pivotRight(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() + distance;
         int rightFrontTarget = rightFront.getCurrentPosition() + distance;
         int leftBackTarget = leftBack.getCurrentPosition() - distance;
@@ -52,7 +62,9 @@ public class Movement {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void shuffleLeft(int distance) {
+    public final void shuffleLeft(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() - distance;
         int rightFrontTarget = rightFront.getCurrentPosition() + distance;
         int leftBackTarget = leftBack.getCurrentPosition() + distance;
@@ -61,21 +73,15 @@ public class Movement {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void shuffleRight(int distance) {
+    public final void shuffleRight(double meters) {
+        int distance = getPulsesFromMeters(meters);
+
         int leftFrontTarget = leftFront.getCurrentPosition() + distance;
         int rightFrontTarget = rightFront.getCurrentPosition() - distance;
         int leftBackTarget = leftBack.getCurrentPosition() - distance;
         int rightBackTarget = rightBack.getCurrentPosition() + distance;
 
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
-    }
-
-    public int getTicksFromInches(double inches) {
-        return (int) (inches * 480.0);
-    }
-
-    public int getTicksFromDegrees(double degree) {
-        return (int) (degree/90 * 815);
     }
 
     private void calculateMovement(int leftFrontTarget, int rightFrontTarget,
@@ -91,7 +97,15 @@ public class Movement {
                 Math.abs(rightFront.getCurrentPosition() - rightFrontTarget) > 10) {
             sleep(10);
         }
-        sleep(50);
+        sleep(100);
+    }
+
+    private int getPulsesFromMeters(double meters) {
+        return (int) (meters * PULSES_PER_METER);
+    }
+
+    private int getPulsesFromDegrees(double degree) {
+        return (int) (degree / 90 * 815);
     }
 
     public final void sleep(long milliseconds) {
