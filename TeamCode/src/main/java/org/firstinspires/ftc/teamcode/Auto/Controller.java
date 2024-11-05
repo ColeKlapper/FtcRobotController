@@ -2,20 +2,52 @@ package org.firstinspires.ftc.teamcode.Auto;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-public class Movement {
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+public class Controller {
     private final double PULSES = 480;
     private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
     private final double PULSES_PER_METER = PULSES / WHEEL_CIRCUMFERENCE_METERS;
-    private DcMotor leftFront;
-    private DcMotor rightFront;
-    private DcMotor leftBack;
-    private DcMotor rightBack;
+    private final double MOTOR_POWER = 0.35;
 
-    public Movement(DcMotor leftFront, DcMotor rightFront, DcMotor leftBack, DcMotor rightBack) {
+    //private final VisionPortal visionPortal;
+    private final DcMotor leftFront;
+    private final DcMotor rightFront;
+    private final DcMotor leftBack;
+    private final DcMotor rightBack;
+
+    public Controller(DcMotor leftFront, DcMotor rightFront, DcMotor leftBack, DcMotor rightBack) {
+        //this.visionPortal = visionPortal;
         this.leftFront = leftFront;
         this.rightFront = rightFront;
         this.leftBack = leftBack;
         this.rightBack = rightBack;
+
+        leftFront.setDirection(DcMotor.Direction.FORWARD);
+        leftBack.setDirection(DcMotor.Direction.FORWARD);
+        rightFront.setDirection(DcMotor.Direction.REVERSE);
+        rightBack.setDirection(DcMotor.Direction.REVERSE);
+
+        rightBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightBack.setTargetPosition(0);
+        rightBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightBack.setPower(MOTOR_POWER);
+
+        rightFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rightFront.setTargetPosition(0);
+        rightFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rightFront.setPower(MOTOR_POWER);
+
+        leftBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftBack.setTargetPosition(0);
+        leftBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        leftBack.setPower(MOTOR_POWER);
+
+        leftFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        leftFront.setTargetPosition(0);
+        leftFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        leftFront.setPower(MOTOR_POWER);
     }
 
     public final void moveForward(double meters) {
@@ -105,7 +137,7 @@ public class Movement {
     }
 
     private int getPulsesFromDegrees(double degree) {
-        return (int) (degree / 90 * 815);
+        return (int) (degree / 90 * PULSES);
     }
 
     public final void sleep(long milliseconds) {
