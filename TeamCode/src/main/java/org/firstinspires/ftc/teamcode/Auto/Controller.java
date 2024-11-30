@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.Auto;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
@@ -9,20 +10,36 @@ public class Controller {
     private final double PULSES = 480;
     private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
     private final double PULSES_PER_METER = PULSES / WHEEL_CIRCUMFERENCE_METERS;
+
     private final double MOTOR_POWER = 0.35;
+    private final double ARM_POWER = 1;
+    private final double LEFT_CLAW_OPEN_TARGET = 0.9;
+    private final double RIGHT_CLAW_OPEN_TARGET = 1;
+    private final double LEFT_CLAW_CLOSED_TARGET = 0.5;
+    private final double RIGHT_CLAW_CLOSED_TARGET = 0.6;
+
+    private final int TARGET_ARM_UP_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
+    private final int TARGET_ARM_DOWN_POSITION = 0;
 
     //private final VisionPortal visionPortal;
     private final DcMotor leftFront;
-    private final DcMotor rightFront;
     private final DcMotor leftBack;
+    private final DcMotor rightFront;
     private final DcMotor rightBack;
+    private final DcMotor arm;
+    private final Servo clawLeft;
+    private final Servo clawRight;
 
-    public Controller(DcMotor leftFront, DcMotor rightFront, DcMotor leftBack, DcMotor rightBack) {
-        //this.visionPortal = visionPortal;
+    public Controller(DcMotor leftFront, DcMotor rightFront, DcMotor leftBack, DcMotor rightBack,
+                      DcMotor arm, Servo clawLeft, Servo clawRight) {
         this.leftFront = leftFront;
-        this.rightFront = rightFront;
         this.leftBack = leftBack;
+        this.rightFront = rightFront;
         this.rightBack = rightBack;
+        this.arm = arm;
+
+        this.clawLeft = clawLeft;
+        this.clawRight = clawRight;
 
         leftFront.setDirection(DcMotor.Direction.FORWARD);
         leftBack.setDirection(DcMotor.Direction.FORWARD);
@@ -48,6 +65,12 @@ public class Controller {
         leftFront.setTargetPosition(0);
         leftFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         leftFront.setPower(MOTOR_POWER);
+
+        arm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
+        arm.setPower(ARM_POWER);
+        arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+        clawLeft.setDirection(Servo.Direction.REVERSE);
     }
 
     public final void moveForward(double meters) {
@@ -114,6 +137,29 @@ public class Controller {
         int rightBackTarget = rightBack.getCurrentPosition() + distance;
 
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
+    }
+
+    public final void moveArm() {
+        if (arm.getCurrentPosition() == TARGET_ARM_DOWN_POSITION) {
+            arm.setTargetPosition(TARGET_ARM_UP_POSITION);
+        } else {
+            arm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
+        }
+
+        sleep(100);
+    }
+
+    public final void moveClaw() {
+        if (clawLeft.getPosition() == LEFT_CLAW_CLOSED_TARGET &&
+                clawRight.getPosition() == RIGHT_CLAW_CLOSED_TARGET) {
+            clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
+            clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
+        } else {
+            clawLeft.setPosition(LEFT_CLAW_CLOSED_TARGET);
+            clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
+        }
+
+        sleep(100);
     }
 
     private void calculateMovement(int leftFrontTarget, int rightFrontTarget,
