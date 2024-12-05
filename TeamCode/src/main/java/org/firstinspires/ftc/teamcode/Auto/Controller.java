@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.Auto;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.vision.VisionPortal;
@@ -10,6 +11,7 @@ public class Controller {
     private final double PULSES = 480;
     private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
     private final double PULSES_PER_METER = PULSES / WHEEL_CIRCUMFERENCE_METERS;
+    private final double PULSES_PER_DEGREE = PULSES / 360;
 
     private final double MOTOR_POWER = 0.35;
     private final double ARM_POWER = 1;
@@ -18,7 +20,11 @@ public class Controller {
     private final double LEFT_CLAW_CLOSED_TARGET = 0.5;
     private final double RIGHT_CLAW_CLOSED_TARGET = 0.6;
 
-    private final int TARGET_ARM_UP_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
+    private final long WAIT_TIME = 500;
+
+    private final int TARGET_ARM_UP_FULL_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
+    private final int TARGET_ARM_UP_HALF_POSITION = 4100;
+    private final int TARGET_ARM_UP_LOW_POSITION = 2400;
     private final int TARGET_ARM_DOWN_POSITION = 0;
 
     //private final VisionPortal visionPortal;
@@ -30,16 +36,15 @@ public class Controller {
     private final Servo clawLeft;
     private final Servo clawRight;
 
-    public Controller(DcMotor leftFront, DcMotor rightFront, DcMotor leftBack, DcMotor rightBack,
-                      DcMotor arm, Servo clawLeft, Servo clawRight) {
-        this.leftFront = leftFront;
-        this.leftBack = leftBack;
-        this.rightFront = rightFront;
-        this.rightBack = rightBack;
-        this.arm = arm;
+    public Controller(HardwareMap hardwareMap) {
+        leftFront = hardwareMap.get(DcMotor.class, "driveMotorTwo");
+        leftBack = hardwareMap.get(DcMotor.class, "driveMotorOne");
+        rightFront = hardwareMap.get(DcMotor.class, "driveMotorFour");
+        rightBack = hardwareMap.get(DcMotor.class, "driveMotorThree");
+        arm = hardwareMap.get(DcMotor.class, "arm");
 
-        this.clawLeft = clawLeft;
-        this.clawRight = clawRight;
+        clawLeft = hardwareMap.get(Servo.class, "clawLeft");
+        clawRight = hardwareMap.get(Servo.class, "clawRight");
 
         leftFront.setDirection(DcMotor.Direction.FORWARD);
         leftBack.setDirection(DcMotor.Direction.FORWARD);
@@ -95,8 +100,8 @@ public class Controller {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void pivotLeft(double meters) {
-        int distance = getPulsesFromMeters(meters);
+    public final void turnLeft(double degrees) {
+        int distance = getPulsesFromDegrees(degrees);
 
         int leftFrontTarget = leftFront.getCurrentPosition() - distance;
         int rightFrontTarget = rightFront.getCurrentPosition() - distance;
@@ -106,8 +111,8 @@ public class Controller {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void pivotRight(double meters) {
-        int distance = getPulsesFromMeters(meters);
+    public final void turnRight(double degrees) {
+        int distance = getPulsesFromDegrees(degrees);
 
         int leftFrontTarget = leftFront.getCurrentPosition() + distance;
         int rightFrontTarget = rightFront.getCurrentPosition() + distance;
@@ -139,14 +144,24 @@ public class Controller {
         calculateMovement(leftFrontTarget, rightFrontTarget, leftBackTarget, rightBackTarget);
     }
 
-    public final void moveArm() {
-        if (arm.getCurrentPosition() == TARGET_ARM_DOWN_POSITION) {
-            arm.setTargetPosition(TARGET_ARM_UP_POSITION);
-        } else {
-            arm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
+    public final void moveArm(ArmState armState) {
+        switch (armState) {
+            case LOW:
+                arm.setTargetPosition(TARGET_ARM_UP_LOW_POSITION);
+                break;
+            case MEDIUM:
+                arm.setTargetPosition(TARGET_ARM_UP_HALF_POSITION);
+                break;
+            case HIGH:
+                arm.setTargetPosition(TARGET_ARM_UP_FULL_POSITION);
+                break;
+            case DOWN:
+            default:
+                arm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
+                break;
         }
 
-        sleep(100);
+        sleep();
     }
 
     public final void moveClaw() {
@@ -159,7 +174,7 @@ public class Controller {
             clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
         }
 
-        sleep(100);
+        sleep();
     }
 
     private void calculateMovement(int leftFrontTarget, int rightFrontTarget,
@@ -169,13 +184,7 @@ public class Controller {
         leftBack.setTargetPosition(leftBackTarget);
         rightBack.setTargetPosition(rightBackTarget);
 
-        while(Math.abs(leftBack.getCurrentPosition() - leftBackTarget) > 10 ||
-                Math.abs(leftFront.getCurrentPosition() - leftFrontTarget) > 5 ||
-                Math.abs(rightBack.getCurrentPosition() - rightBackTarget) > 10 ||
-                Math.abs(rightFront.getCurrentPosition() - rightFrontTarget) > 10) {
-            sleep(10);
-        }
-        sleep(100);
+        sleep();
     }
 
     private int getPulsesFromMeters(double meters) {
@@ -183,12 +192,12 @@ public class Controller {
     }
 
     private int getPulsesFromDegrees(double degree) {
-        return (int) (degree / 90 * PULSES);
+        return (int) (degree * PULSES_PER_DEGREE);
     }
 
-    public final void sleep(long milliseconds) {
+    private void sleep() {
         try {
-            Thread.sleep(milliseconds);
+            Thread.sleep(WAIT_TIME);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

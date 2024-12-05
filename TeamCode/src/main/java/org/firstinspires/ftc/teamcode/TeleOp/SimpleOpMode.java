@@ -13,11 +13,13 @@ public class SimpleOpMode extends LinearOpMode {
 
         final double LEFT_CLAW_OPEN_TARGET = 0.9;
         final double RIGHT_CLAW_OPEN_TARGET = 1;
-        final double LEFT_CLAW_CLOSED_TARGET = 0.5;
-        final double RIGHT_CLAW_CLOSED_TARGET = 0.6;
+        final double LEFT_CLAW_CLOSED_TARGET = 0.45;
+        final double RIGHT_CLAW_CLOSED_TARGET = 0.55;
         final double ARM_POWER = 1;
 
-        final int TARGET_ARM_UP_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
+        final int TARGET_ARM_UP_FULL_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
+        final int TARGET_ARM_UP_HALF_POSITION = 4000;
+        final int TARGET_ARM_UP_LOW_POSITION = 2400;
         final int TARGET_ARM_DOWN_POSITION = 0;
 
         double targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
@@ -83,7 +85,21 @@ public class SimpleOpMode extends LinearOpMode {
             if (leftFrontMotorPower == 0 && leftBackMotorPower == 0 &&
                     rightFrontMotorPower == 0 && rightBackMotorPower == 0) {
                 if (gamepad1.dpad_up) {
-                    targetArmPosition = TARGET_ARM_UP_POSITION;
+                    switch (targetArmPosition) {
+                        case TARGET_ARM_DOWN_POSITION:
+                            targetArmPosition = TARGET_ARM_UP_LOW_POSITION;
+                            break;
+                        case TARGET_ARM_UP_LOW_POSITION:
+                            targetArmPosition = TARGET_ARM_UP_HALF_POSITION;
+                            break;
+                        case TARGET_ARM_UP_HALF_POSITION:
+                            targetArmPosition = TARGET_ARM_UP_FULL_POSITION;
+                            break;
+                        case TARGET_ARM_UP_FULL_POSITION:
+                        default:
+                            targetArmPosition = TARGET_ARM_DOWN_POSITION;
+                            break;
+                    }
                 } else if (gamepad1.dpad_down) {
                     targetArmPosition = TARGET_ARM_DOWN_POSITION;
                 }

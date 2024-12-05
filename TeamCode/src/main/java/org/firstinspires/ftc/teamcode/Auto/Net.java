@@ -5,9 +5,12 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 @com.qualcomm.robotcore.eventloop.opmode.Autonomous
-public class ObservationBlue extends LinearOpMode {
+public class Net extends LinearOpMode {
     @Override
     public void runOpMode() {
+        final double TILE_SIZE_METERS = 0.6096;
+        final double ROBOT_SIZE_METERS = 0.4572;
+
         DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorTwo");
         DcMotor leftBackDrive = hardwareMap.get(DcMotor.class, "driveMotorOne");
         DcMotor rightFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorFour");
@@ -17,8 +20,7 @@ public class ObservationBlue extends LinearOpMode {
         Servo clawLeft = hardwareMap.get(Servo.class, "clawLeft");
         Servo clawRight = hardwareMap.get(Servo.class, "clawRight");
 
-        Controller controller = new Controller(leftFrontDrive, rightFrontDrive,
-                leftBackDrive, rightBackDrive, arm, clawLeft, clawRight);
+        Controller controller = new Controller(hardwareMap);
 
         // Telemetry Initialization
         telemetry.addData("Status", "Initialized");
@@ -26,6 +28,18 @@ public class ObservationBlue extends LinearOpMode {
 
         waitForStart();
 
-        controller.shuffleRight(1.2);
+        // Feild tiles = 24 inches
+        // 24in * 3Tiles - 18in (size of robot) = 72in = 1.3716m ~= 1.3 rounded down
+        controller.moveForward(TILE_SIZE_METERS * 3 - ROBOT_SIZE_METERS);
+        controller.shuffleRight(0.4); // guessed
+
+        // Experimental code
+//        controller.moveArm();
+//        controller.moveForward(TILE_SIZE_METERS);
+//        controller.moveClaw();
+//        controller.pivotRight(1);
+//        controller.moveArm();
+//        controller.moveForward(TILE_SIZE_METERS * 2);
+//        controller.shuffleRight(TILE_SIZE_METERS * 2);
     }
 }
