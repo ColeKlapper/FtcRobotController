@@ -11,15 +11,6 @@ public class Net extends LinearOpMode {
         final double TILE_SIZE_METERS = 0.6096;
         final double ROBOT_SIZE_METERS = 0.4572;
 
-        DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorTwo");
-        DcMotor leftBackDrive = hardwareMap.get(DcMotor.class, "driveMotorOne");
-        DcMotor rightFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorFour");
-        DcMotor rightBackDrive = hardwareMap.get(DcMotor.class, "driveMotorThree");
-        DcMotor arm = hardwareMap.get(DcMotor.class, "arm");
-
-        Servo clawLeft = hardwareMap.get(Servo.class, "clawLeft");
-        Servo clawRight = hardwareMap.get(Servo.class, "clawRight");
-
         Controller controller = new Controller(hardwareMap);
 
         // Telemetry Initialization
