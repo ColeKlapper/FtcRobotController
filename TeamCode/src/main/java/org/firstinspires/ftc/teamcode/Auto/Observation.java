@@ -15,30 +15,18 @@ public class Observation extends LinearOpMode {
         waitForStart();
 
         // Get to high chamber & score
-        controller.moveForward(1);
-        controller.moveArm(ArmState.HIGH);
-        controller.moveForward(0.2);
+        controller.moveForward(0.64);
         controller.moveArm(ArmState.MEDIUM);
-        controller.moveBackward(0.3);
+        controller.moveForward(0.1);
+        controller.moveArm(ArmState.HIGH);
+        controller.changePrecisionMode(PrecisionMode.MOTORS);
+        controller.moveBackward(0.6);
+        controller.changePrecisionMode(PrecisionMode.MOTORS);
         controller.moveClaw();
         controller.moveArm(ArmState.DOWN);
-        controller.moveBackward(0.8);
-
-        // Move right & grab specimen
-        controller.shuffleRight(1.2);
-        controller.moveClaw();
-
-        // Move to net & turn
-        controller.shuffleLeft(3);
-        controller.turnRight(180);
-
-        // Place specimen in net
-        controller.moveArm(ArmState.MEDIUM);
-        controller.moveForward(0.2);
-        controller.moveClaw();
-        controller.moveBackward(0.2);
 
         // Move all the way back into the parking zone
-        controller.shuffleRight(3);
+        controller.shuffleRight(10);
+        controller.moveBackward(0.4);
     }
 }

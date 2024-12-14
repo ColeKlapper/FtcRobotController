@@ -6,26 +6,24 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 
 @TeleOp
-public class SimpleOpMode extends LinearOpMode {
+public class DuoOpMode extends LinearOpMode {
     @Override
     public void runOpMode() {
         final double DRIVE_SPEED = 1.0;
         final double PRECISION_DRIVE_SPEED = 0.2;
+        final double ARM_SPEED = 0.50;
+        final double PRECISION_ARM_SPEED = 0.1;
 
         final double LEFT_CLAW_OPEN_TARGET = 0.9;
         final double RIGHT_CLAW_OPEN_TARGET = 1;
         final double LEFT_CLAW_CLOSED_TARGET = 0.45;
         final double RIGHT_CLAW_CLOSED_TARGET = 0.55;
-        final double ARM_POWER = 1;
 
-        final int TARGET_ARM_UP_FULL_POSITION = 3500; // 1230 is 1 rotation, 4920 is 4 rotations
-        final int TARGET_ARM_UP_HALF_POSITION = 3150;
-        final int TARGET_ARM_UP_LOW_POSITION = 2000;
-        final int TARGET_ARM_DOWN_POSITION = 0;
+        final int MAX_ARM_LIMIT = 4955;
+        final int MIN_ARM_LIMIT = 5;
 
         double targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
         double targetRightClawPosition = RIGHT_CLAW_CLOSED_TARGET;
-        int targetArmPosition = TARGET_ARM_DOWN_POSITION;
 
         // Hardware
         DcMotor leftFrontDrive = hardwareMap.get(DcMotor.class, "driveMotorTwo");
@@ -38,9 +36,10 @@ public class SimpleOpMode extends LinearOpMode {
         Servo clawRight = hardwareMap.get(Servo.class, "clawRight");
 
         // Motor settings
-        arm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
-        arm.setPower(ARM_POWER);
-        arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        // arm.setPower(ARM_POWER);
+        arm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        arm.setTargetPosition(0);
+        //arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         clawLeft.setDirection(Servo.Direction.REVERSE);
 
@@ -62,16 +61,18 @@ public class SimpleOpMode extends LinearOpMode {
 
         while (opModeIsActive()) {
             // Movement code
-            double leftStickY = -gamepad1.left_stick_y;
-            double leftStickX = gamepad1.left_stick_x * 1.1;
+            double playerOneLeftStickY = -gamepad1.left_stick_y;
+            double playerOneLeftStickX = gamepad1.left_stick_x * 1.1;
             double rightStickX = gamepad1.right_stick_x;
             double driveSpeed;
 
-            double denominator = Math.max(Math.abs(leftStickY) + Math.abs(leftStickX) + Math.abs(rightStickX), 1);
-            double leftFrontMotorPower = (leftStickY + leftStickX + rightStickX) / denominator;
-            double leftBackMotorPower = (leftStickY - leftStickX + rightStickX) / denominator;
-            double rightFrontMotorPower = (leftStickY - leftStickX - rightStickX) / denominator;
-            double rightBackMotorPower = (leftStickY + leftStickX - rightStickX) / denominator;
+            double playerTwoLeftStickY = -gamepad2.left_stick_y * 4;
+
+            double denominator = Math.max(Math.abs(playerOneLeftStickY) + Math.abs(playerOneLeftStickX) + Math.abs(rightStickX), 1);
+            double leftFrontMotorPower = (playerOneLeftStickY + playerOneLeftStickX + rightStickX) / denominator;
+            double leftBackMotorPower = (playerOneLeftStickY - playerOneLeftStickX + rightStickX) / denominator;
+            double rightFrontMotorPower = (playerOneLeftStickY - playerOneLeftStickX - rightStickX) / denominator;
+            double rightBackMotorPower = (playerOneLeftStickY + playerOneLeftStickX - rightStickX) / denominator;
 
             if (gamepad1.left_trigger != 0) {
                 driveSpeed = PRECISION_DRIVE_SPEED;
@@ -86,37 +87,32 @@ public class SimpleOpMode extends LinearOpMode {
             rightBackDrive.setPower(rightBackMotorPower * driveSpeed);
 
             // Arm & Claw
-            arm.setTargetPosition(targetArmPosition);
             clawLeft.setPosition(targetLeftClawPosition);
             clawRight.setPosition(targetRightClawPosition);
 
+            double armPower = playerTwoLeftStickY / denominator;
+
+            if (gamepad2.left_trigger != 0) {
+                armPower *= PRECISION_ARM_SPEED;
+            } else {
+                armPower *= ARM_SPEED;
+            }
+
             if (leftFrontMotorPower == 0 && leftBackMotorPower == 0 &&
                     rightFrontMotorPower == 0 && rightBackMotorPower == 0) {
-                if (gamepad1.dpad_up) {
-                    switch (targetArmPosition) {
-                        case TARGET_ARM_DOWN_POSITION:
-                            targetArmPosition = TARGET_ARM_UP_LOW_POSITION;
-                            break;
-                        case TARGET_ARM_UP_LOW_POSITION:
-                            targetArmPosition = TARGET_ARM_UP_HALF_POSITION;
-                            break;
-                        case TARGET_ARM_UP_HALF_POSITION:
-                            targetArmPosition = TARGET_ARM_UP_FULL_POSITION;
-                            break;
-                        case TARGET_ARM_UP_FULL_POSITION:
-                        default:
-                            targetArmPosition = TARGET_ARM_DOWN_POSITION;
-                            break;
-                    }
-                } else if (gamepad1.dpad_down) {
-                    targetArmPosition = TARGET_ARM_DOWN_POSITION;
+
+                if ((arm.getCurrentPosition() <= MAX_ARM_LIMIT || armPower < 0) &&
+                        (arm.getCurrentPosition() >= MIN_ARM_LIMIT || armPower > 0)) {
+                    arm.setPower(armPower);
+                } else {
+                    arm.setPower(0);
                 }
             }
 
-            if (gamepad1.b) {
+            if (gamepad2.b) {
                 targetLeftClawPosition = LEFT_CLAW_OPEN_TARGET;
                 targetRightClawPosition = RIGHT_CLAW_OPEN_TARGET;
-            } else if (gamepad1.x) {
+            } else if (gamepad2.x) {
                 targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
                 targetRightClawPosition = RIGHT_CLAW_CLOSED_TARGET;
             }
@@ -128,7 +124,8 @@ public class SimpleOpMode extends LinearOpMode {
             telemetry.addData("Right Back Motor Power: ", rightBackDrive.getPower());
             telemetry.addData("Left claw position: ", clawLeft.getPosition());
             telemetry.addData("Left claw position: ", clawRight.getPosition());
-            telemetry.addData("Arm position: ", targetArmPosition);
+            telemetry.addData("Arm Power: ", arm.getPower());
+            telemetry.addData("Arm position: ", arm.getCurrentPosition());
 
             telemetry.update();
         }

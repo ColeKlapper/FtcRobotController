@@ -4,9 +4,6 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
-import org.firstinspires.ftc.vision.VisionPortal;
-import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-
 public class Controller {
     private final double PULSES = 480;
     private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
@@ -14,17 +11,21 @@ public class Controller {
     private final double PULSES_PER_DEGREE = PULSES / 360;
 
     private final double MOTOR_POWER = 0.35;
+    private final double PRECISION_MOTOR_POWER = 0.15;
     private final double ARM_POWER = 1;
+    private final double PRECISION_ARM_POWER = 0.1;
     private final double LEFT_CLAW_OPEN_TARGET = 0.9;
     private final double RIGHT_CLAW_OPEN_TARGET = 1;
-    private final double LEFT_CLAW_CLOSED_TARGET = 0.5;
-    private final double RIGHT_CLAW_CLOSED_TARGET = 0.6;
+    private final double LEFT_CLAW_CLOSED_TARGET = 0.4;
+    private final double RIGHT_CLAW_CLOSED_TARGET = 0.43;
 
-    private final long WAIT_TIME = 500;
+    private final long WAIT_TIME_MOTORS = 800;
+    private final long WAIT_TIME_CLAW = 1000;
+    private final long WAIT_TIME_ARM = 2000;
 
-    private final int TARGET_ARM_UP_FULL_POSITION = 4920; // 1230 is 1 rotation, 4920 is 4 rotations
-    private final int TARGET_ARM_UP_HALF_POSITION = 4100;
-    private final int TARGET_ARM_UP_LOW_POSITION = 2400;
+    private final int TARGET_ARM_UP_FULL_POSITION = 3500; // 1230 is 1 rotation, 4920 is 4 rotations
+    private final int TARGET_ARM_UP_HALF_POSITION = 3150;
+    private final int TARGET_ARM_UP_LOW_POSITION = 2000;
     private final int TARGET_ARM_DOWN_POSITION = 0;
 
     //private final VisionPortal visionPortal;
@@ -76,6 +77,8 @@ public class Controller {
         arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
         clawLeft.setDirection(Servo.Direction.REVERSE);
+        clawLeft.setPosition(LEFT_CLAW_CLOSED_TARGET);
+        clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
     }
 
     public final void moveForward(double meters) {
@@ -161,12 +164,12 @@ public class Controller {
                 break;
         }
 
-        sleep();
+        sleep(WAIT_TIME_ARM);
     }
 
     public final void moveClaw() {
-        if (clawLeft.getPosition() == LEFT_CLAW_CLOSED_TARGET &&
-                clawRight.getPosition() == RIGHT_CLAW_CLOSED_TARGET) {
+        if (clawLeft.getPosition() <= LEFT_CLAW_CLOSED_TARGET &&
+                clawRight.getPosition() <= RIGHT_CLAW_CLOSED_TARGET) {
             clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
             clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
         } else {
@@ -174,7 +177,55 @@ public class Controller {
             clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
         }
 
-        sleep();
+        sleep(WAIT_TIME_CLAW);
+    }
+
+    public final void changePrecisionMode(PrecisionMode precisionMode) {
+        switch (precisionMode) {
+            case ARM:
+                if (arm.getPower() == ARM_POWER) {
+                    arm.setPower(PRECISION_ARM_POWER);
+                } else {
+                    arm.setPower(ARM_POWER);
+                }
+
+                break;
+            case MOTORS:
+            default:
+                double motorPower = MOTOR_POWER;
+
+                if (leftFront.getPower() == MOTOR_POWER && rightFront.getPower() == MOTOR_POWER &&
+                        leftBack.getPower() == MOTOR_POWER && rightBack.getPower() == MOTOR_POWER) {
+                    motorPower = PRECISION_MOTOR_POWER;
+                }
+
+                leftFront.setPower(motorPower);
+                rightFront.setPower(motorPower);
+                leftBack.setPower(motorPower);
+                rightBack.setPower(motorPower);
+
+                break;
+        }
+    }
+
+    public final void changePrecisionMode() {
+        double motorPower = MOTOR_POWER;
+
+        if (leftFront.getPower() == MOTOR_POWER && rightFront.getPower() == MOTOR_POWER &&
+                leftBack.getPower() == MOTOR_POWER && rightBack.getPower() == MOTOR_POWER) {
+            motorPower = PRECISION_MOTOR_POWER;
+        }
+
+        leftFront.setPower(motorPower);
+        rightFront.setPower(motorPower);
+        leftBack.setPower(motorPower);
+        rightBack.setPower(motorPower);
+
+        if (arm.getPower() == ARM_POWER) {
+            arm.setPower(PRECISION_ARM_POWER);
+        } else {
+            arm.setPower(ARM_POWER);
+        }
     }
 
     private void calculateMovement(int leftFrontTarget, int rightFrontTarget,
@@ -184,7 +235,7 @@ public class Controller {
         leftBack.setTargetPosition(leftBackTarget);
         rightBack.setTargetPosition(rightBackTarget);
 
-        sleep();
+        sleep(WAIT_TIME_MOTORS);
     }
 
     private int getPulsesFromMeters(double meters) {
@@ -195,9 +246,9 @@ public class Controller {
         return (int) (degree * PULSES_PER_DEGREE);
     }
 
-    private void sleep() {
+    private void sleep(long waitTime) {
         try {
-            Thread.sleep(WAIT_TIME);
+            Thread.sleep(waitTime);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
