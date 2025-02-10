@@ -3,8 +3,6 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-import org.firstinspires.ftc.teamcode.Controller.SecondaryArmState;
-
 @TeleOp
 public class DuoOpMode extends OpModeTools {
     @Override
@@ -12,10 +10,12 @@ public class DuoOpMode extends OpModeTools {
         final int MAX_ARM_LIMIT = 4955;
         final int MIN_ARM_LIMIT = 5;
 
+        secondaryArmGamepad = gamepad2;
+
         // Motor settings
         primaryArm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         primaryArm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        secondaryArmThread.setGamePad(gamepad2);
+        secondaryArmThread.start();
 
         while (opModeIsActive()) {
             checkScoreSpecimen();
@@ -47,7 +47,7 @@ public class DuoOpMode extends OpModeTools {
                 rightFront.setPower(rightFrontMotorPower * driveSpeed);
                 rightBack.setPower(rightBackMotorPower * driveSpeed);
 
-                if (!secondaryArmLongSequenceActivated) {
+                if (armTradeState != ArmTradeState.PASS && armTradeState != ArmTradeState.STOP) {
                     double armPower = playerTwoLeftStickY / denominator;
 
                     // Arm & Claw
@@ -67,7 +67,7 @@ public class DuoOpMode extends OpModeTools {
                         primaryArm.setPower(0);
                     }
 
-                    checkMoveClaw(gamepad2);
+                    checkMoveClaw();
                 }
             }
 

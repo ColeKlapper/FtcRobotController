@@ -9,13 +9,13 @@ import org.firstinspires.ftc.teamcode.Controller.*;
 
 abstract class OpModeTools extends LinearOpMode {
     protected final double LEFT_CLAW_OPEN_TARGET = 0.9;
-    protected final double LEFT_CLAW_CLOSED_TARGET = 0.43;
+    protected final double LEFT_CLAW_CLOSED_TARGET = 0.41;
 
     protected final double RIGHT_CLAW_OPEN_TARGET = 1;
-    protected final double RIGHT_CLAW_CLOSED_TARGET = 0.55;
+    protected final double RIGHT_CLAW_CLOSED_TARGET = 0.53;
 
     protected final double SECONDARY_CLAW_OPEN = 0.0;
-    protected final double SECONDARY_CLAW_HALF_OPEN = 0.1;
+    protected final double SECONDARY_CLAW_HALF_OPEN = 0.18;
     protected final double SECONDARY_CLAW_CLOSED = 0.23;
 
     protected final double DRIVE_SPEED = 1.0;
@@ -25,11 +25,6 @@ abstract class OpModeTools extends LinearOpMode {
     protected final double PRECISION_PRIMARY_ARM_SPEED = 0.1;
 
     protected final int TARGET_ARM_HIGH_POSITION = 4930;
-
-    protected final int TARGET_SECONDARY_ARM_REST = 150;
-    protected final int TARGET_SECONDARY_ARM_TOP = 290;
-    protected final int TARGET_SECONDARY_ARM_PICK_UP = 550;
-
     protected final int TARGET_ARM_DOWN_POSITION = 0;
 
     protected DcMotor leftFront;
@@ -46,19 +41,27 @@ abstract class OpModeTools extends LinearOpMode {
     protected Controller controller;
     protected AutoThread autoThread;
     protected SecondaryArmThread secondaryArmThread;
+    protected ArmTradeState armTradeState = ArmTradeState.HOLDING;
+    protected Gamepad secondaryArmGamepad;
 
     protected double targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
     protected double targetRightClawPosition = RIGHT_CLAW_CLOSED_TARGET;
 
-    protected boolean secondaryArmLongSequenceActivated = false;
-    protected boolean secondaryArmShortSequenceActivated = false;
-    private boolean rightTriggerHeldDown = false;
+    protected int targetArmPosition = TARGET_ARM_DOWN_POSITION;
+
+    private final int SECONDARY_ARM_HOLDING = 120;
+
+    private boolean interruptHeldDown = false;
+    private boolean abHeldDown = false;
+    private boolean stopArmHeldDown = false;
+    private boolean mainClawHeldDown = false;
+    private boolean primaryClawOpen = false;
 
     abstract void customOpMode();
 
     @Override
     public void runOpMode() {
-        final double SECONDARY_ARM_SPEED = 0.1;
+        final double SECONDARY_ARM_SPEED = 0.8;
 
         leftFront = hardwareMap.get(DcMotor.class, "driveMotorTwo");
         leftBack = hardwareMap.get(DcMotor.class, "driveMotorOne");
@@ -97,18 +100,31 @@ abstract class OpModeTools extends LinearOpMode {
         telemetry.addData("Status", "Initialized");
         telemetry.addData("Secondary Claw position: ", secondaryClaw.getPosition());
         telemetry.update();
-        secondaryArm.setTargetPosition(controller.REST);
         secondaryClaw.setPosition(SECONDARY_CLAW_CLOSED);
 
         waitForStart();
+        secondaryArm.setTargetPosition(SECONDARY_ARM_HOLDING);
         customOpMode();
     }
 
     protected final void checkScoreSpecimen() {
         if (gamepad1.right_trigger != 0) {
-            if (!rightTriggerHeldDown && !secondaryArmShortSequenceActivated &&
-                    !secondaryArmLongSequenceActivated) {
-                rightTriggerHeldDown = true;
+            if (!interruptHeldDown) {
+                interruptHeldDown = true;
+
+                controller.setDcMotorMode(false);
+
+                autoThread.interrupt();
+                secondaryArmThread.interrupt();
+                secondaryArmThread.rest();
+            }
+        } else {
+            interruptHeldDown = false;
+        }
+
+        if (gamepad1.a && gamepad1.y) {
+            if (!abHeldDown && armTradeState == ArmTradeState.HOLDING) {
+                abHeldDown = true;
 
                 if (!autoThread.isAlive()) {
                     controller.setDcMotorMode(true);
@@ -121,164 +137,229 @@ abstract class OpModeTools extends LinearOpMode {
                 sleep(3);
             }
         } else {
-            rightTriggerHeldDown = false;
+            abHeldDown = false;
         }
     }
 
-    protected final void checkMoveClaw(Gamepad gamepad) {
-        if (!secondaryArmShortSequenceActivated) {
-            if (primaryArm.getCurrentPosition() <= 800 &&
-                    secondaryArm.getCurrentPosition() > controller.REST) {
-                controller.moveSecondaryArm(SecondaryArmState.REST);
-            } else if (secondaryArm.getCurrentPosition() < controller.TOP) {
-                controller.moveSecondaryArm(SecondaryArmState.TOP);
-            }
-        }
+    protected final void checkMoveClaw() {
+        if (secondaryArmGamepad.x) {
+            if (!mainClawHeldDown) {
+                mainClawHeldDown = true;
 
-        if (gamepad.x) {
-            targetLeftClawPosition = LEFT_CLAW_OPEN_TARGET;
-            targetRightClawPosition = RIGHT_CLAW_OPEN_TARGET;
-        } else if (gamepad.b) {
-            targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
-            targetRightClawPosition = RIGHT_CLAW_CLOSED_TARGET;
+                if (primaryClawOpen) {
+                    targetLeftClawPosition = LEFT_CLAW_CLOSED_TARGET;
+                    targetRightClawPosition = RIGHT_CLAW_CLOSED_TARGET;
+                } else {
+                    targetLeftClawPosition = LEFT_CLAW_OPEN_TARGET;
+                    targetRightClawPosition = RIGHT_CLAW_OPEN_TARGET;
+                }
+
+                primaryClawOpen = !primaryClawOpen;
+            }
+        } else {
+            mainClawHeldDown = false;
         }
     }
 
     protected final class SecondaryArmThread extends Thread {
-        private DcMotor.RunMode previousMode = primaryArm.getMode();
-        private Gamepad gamepad;
+        public DcMotor.RunMode previousMode = primaryArm.getMode();
 
-        private boolean buttonHeldDown = false;
+        private boolean moveArmHeldDown = false;
+        private boolean clawHeldDown = false;
+        private boolean clawOpen = false;
 
         @Override
         public void run() {
+            final int SECONDARY_ARM_SUBMERSIBLE = 280;
+            final int SECONDARY_ARM_PICK_UP = 390;
+            final int SECONDARY_ARM_ALIGNMENT = 355;
+
+            if (secondaryArmGamepad == null) {
+                throw new RuntimeException("No secondary arm game pad defined.");
+            }
 
             while (opModeIsActive()) {
-                if (gamepad.right_bumper) {
-                    if (!buttonHeldDown) {
-                        buttonHeldDown = true;
+                if (secondaryArmGamepad.y) {
+                    if (!stopArmHeldDown) {
+                        stopArmHeldDown = true;
 
-                        if (!secondaryArmLongSequenceActivated) {
+                        switch (armTradeState) {
+                            case PASS:
+                                break;
+                            case STOP:
+                                armTradeState = ArmTradeState.HOLDING;
+                                secondaryArm.setTargetPosition(SECONDARY_ARM_HOLDING);
+                                break;
+                            default:
+                                if (primaryArm.getCurrentPosition() <= TARGET_ARM_DOWN_POSITION) {
+                                    armTradeState = ArmTradeState.STOP;
+                                    previousMode = primaryArm.getMode();
+
+                                    secondaryArm.setTargetPosition(0);
+                                }
+
+                                break;
+                        }
+                    }
+                } else {
+                    stopArmHeldDown = false;
+                }
+
+                if (armTradeState != ArmTradeState.STOP) {
+                    if (secondaryArmGamepad.b && armTradeState != ArmTradeState.HOLDING) {
+                        if (!clawHeldDown) {
+                            clawHeldDown = true;
+
+                            if (clawOpen) {
+                                secondaryClaw.setPosition(SECONDARY_CLAW_CLOSED);
+                            } else {
+                                secondaryClaw.setPosition(SECONDARY_CLAW_OPEN);
+                            }
+
+                            clawOpen = !clawOpen;
+                        }
+                    } else {
+                        clawHeldDown = false;
+                    }
+
+                    if (secondaryArmGamepad.right_bumper) {
+                        if (!moveArmHeldDown) {
+                            ArmTradeState previousArmTradeState = armTradeState;
+
+                            moveArmHeldDown = true;
+                            armTradeState = ArmTradeState.PASS;
                             previousMode = primaryArm.getMode();
-                            secondaryArmLongSequenceActivated = true;
 
                             primaryArm.setPower(1);
                             primaryArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-                            if (!secondaryArmShortSequenceActivated) {
-                                secondaryClaw.setPosition(SECONDARY_CLAW_OPEN);
-                                secondaryArm.setTargetPosition(TARGET_SECONDARY_ARM_PICK_UP);
+                            clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
+                            clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
 
-                                clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
-                                clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
+                            switch (previousArmTradeState) {
+                                case ENTER_SUBMERSIBLE:
+                                    moveSecondaryArm(SECONDARY_ARM_SUBMERSIBLE);
+                                case ALIGNMENT:
+                                    if (!clawOpen) {
+                                        moveClaw(SECONDARY_CLAW_OPEN);
+                                        clawOpen = true;
+                                    }
 
-                                movePrimaryArm(TARGET_ARM_HIGH_POSITION);
-                            } else {
-                                clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
-                                clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
-                                moveClaw(SECONDARY_CLAW_CLOSED);
+                                    moveSecondaryArm(SECONDARY_ARM_PICK_UP);
+                                case PICK_UP:
+                                    if (clawOpen) {
+                                        moveClaw(SECONDARY_CLAW_CLOSED);
+                                        clawOpen = false;
+                                    }
+                                case EXIT_SUBMERSIBLE:
+                                    moveSecondaryArm(SECONDARY_ARM_HOLDING);
+                                case HOLDING:
+                                    if (primaryArm.getCurrentPosition() != TARGET_ARM_HIGH_POSITION) {
+                                        movePrimaryArm(TARGET_ARM_HIGH_POSITION);
+                                    }
+                                    tradSample();
+                                    break;
 
-                                secondaryArm.setTargetPosition(TARGET_SECONDARY_ARM_TOP);
-
-                                movePrimaryArm(TARGET_ARM_HIGH_POSITION);
-
-                                secondaryArmShortSequenceActivated = false;
-                                tradSample();
                             }
-                        } else {
-                            moveClaw(SECONDARY_CLAW_CLOSED);
-                            moveSecondaryArm(TARGET_SECONDARY_ARM_TOP);
-
-                            tradSample();
                         }
-                    }
-                } else if (gamepad.left_bumper) {
-                    if (!buttonHeldDown && !secondaryArmLongSequenceActivated) {
-                        if (secondaryArm.getCurrentPosition() < TARGET_SECONDARY_ARM_PICK_UP - 50) {
-                            secondaryArmShortSequenceActivated = true;
+                    } else if (secondaryArmGamepad.left_bumper) {
+                        if (!moveArmHeldDown) {
+                            moveArmHeldDown = true;
 
-                            moveSecondaryArm(TARGET_SECONDARY_ARM_PICK_UP);
-                            moveClaw(SECONDARY_CLAW_OPEN);
-                        } else {
-                            moveClaw(SECONDARY_CLAW_CLOSED);
-                            moveSecondaryArm(TARGET_SECONDARY_ARM_TOP);
-                            secondaryArmShortSequenceActivated = false;
+                            switch (armTradeState) {
+                                case HOLDING:
+                                    armTradeState = ArmTradeState.ENTER_SUBMERSIBLE;
+                                    secondaryArm.setTargetPosition(SECONDARY_ARM_SUBMERSIBLE);
+                                    break;
+                                case ENTER_SUBMERSIBLE:
+                                    armTradeState = ArmTradeState.ALIGNMENT;
+                                    secondaryArm.setTargetPosition(SECONDARY_ARM_ALIGNMENT);
+                                    break;
+                                case ALIGNMENT:
+                                    armTradeState = ArmTradeState.PICK_UP;
+                                    secondaryArm.setTargetPosition(SECONDARY_ARM_PICK_UP);
+                                    break;
+                                case PICK_UP:
+                                    armTradeState = ArmTradeState.EXIT_SUBMERSIBLE;
+                                    moveSecondaryArm(SECONDARY_ARM_SUBMERSIBLE);
+                                    moveClaw(SECONDARY_CLAW_HALF_OPEN);
+                                    secondaryClaw.setPosition(SECONDARY_CLAW_CLOSED);
+                                    break;
+                                case EXIT_SUBMERSIBLE:
+                                    armTradeState = ArmTradeState.HOLDING;
+                                    secondaryArm.setTargetPosition(SECONDARY_ARM_HOLDING);
+                                    break;
+                            }
                         }
+                    } else {
+                        moveArmHeldDown = false;
                     }
-                } else {
-                    buttonHeldDown = false;
-                }
-
-                try {
-                    sleep(3);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
                 }
             }
         }
 
-        public void setGamePad(Gamepad gamepad) {
-            this.gamepad = gamepad;
+        public void rest() {
+            moveArmHeldDown = false;
+            clawHeldDown = false;
+            clawOpen = false;
+
+            armTradeState = ArmTradeState.HOLDING;
+            primaryArm.setMode(previousMode);
+            secondaryClaw.setPosition(SECONDARY_CLAW_CLOSED);
+
+            if (primaryArm.getCurrentPosition() != TARGET_ARM_DOWN_POSITION) {
+                movePrimaryArm(TARGET_ARM_HIGH_POSITION);
+                secondaryArm.setTargetPosition(SECONDARY_ARM_HOLDING);
+            } else {
+                secondaryArm.setTargetPosition(SECONDARY_ARM_HOLDING);
+            }
+
             start();
         }
 
         private void moveClaw(double position) {
             secondaryClaw.setPosition(position);
-
-            try {
-                sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            pause(300);
         }
 
         private void movePrimaryArm(int position) {
             primaryArm.setTargetPosition(position);
-
-            try {
-                sleep(2500);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            pause(2500);
         }
 
         private void moveSecondaryArm(int position) {
             secondaryArm.setTargetPosition(position);
-
-            try {
-                sleep(1100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            pause(700);
         }
 
         private void tradSample() {
-            final int TARGET_GRAB_SAMPLE_POSITION = 1180;
-            moveClaw(SECONDARY_CLAW_HALF_OPEN);
-            moveClaw(SECONDARY_CLAW_CLOSED);
+            final int SECONDARY_ARM_PASS = -120;
 
-            moveSecondaryArm(TARGET_ARM_DOWN_POSITION);
-            movePrimaryArm(TARGET_GRAB_SAMPLE_POSITION);
+            moveSecondaryArm(SECONDARY_ARM_PASS);
+            movePrimaryArm(TARGET_ARM_DOWN_POSITION);
 
             clawLeft.setPosition(LEFT_CLAW_CLOSED_TARGET);
             clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
-            try {
-                sleep(300);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            pause(300);
 
             moveClaw(SECONDARY_CLAW_OPEN);
 
             movePrimaryArm(TARGET_ARM_HIGH_POSITION);
-            moveSecondaryArm(TARGET_SECONDARY_ARM_TOP);
+            moveSecondaryArm(SECONDARY_ARM_HOLDING);
 
-            movePrimaryArm(TARGET_ARM_DOWN_POSITION);
-            secondaryClaw.setPosition(SECONDARY_CLAW_CLOSED);
-            moveSecondaryArm(TARGET_SECONDARY_ARM_REST);
+            moveClaw(SECONDARY_CLAW_CLOSED);
 
             primaryArm.setMode(previousMode);
-            secondaryArmLongSequenceActivated = false;
+            targetArmPosition = TARGET_ARM_HIGH_POSITION;
+            armTradeState = ArmTradeState.HOLDING;
+        }
+
+        private void pause(long millis) {
+            try {
+                sleep(millis);
+            } catch (InterruptedException e) {
+                interrupt();
+            }
         }
     }
 
@@ -288,5 +369,15 @@ abstract class OpModeTools extends LinearOpMode {
             controller.scoreSpecimen();
             controller.setDcMotorMode(false);
         }
+    }
+
+    protected enum ArmTradeState {
+        HOLDING,
+        ENTER_SUBMERSIBLE,
+        ALIGNMENT,
+        PICK_UP,
+        EXIT_SUBMERSIBLE,
+        PASS,
+        STOP,
     }
 }

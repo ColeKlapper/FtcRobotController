@@ -2,9 +2,6 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.Gamepad;
-
-import org.firstinspires.ftc.teamcode.Controller.SecondaryArmState;
 
 @TeleOp
 public class SingleOpMode extends OpModeTools {
@@ -15,11 +12,11 @@ public class SingleOpMode extends OpModeTools {
         final int TARGET_ARM_MEDIUM_POSITION = 3500; // 1230 is 1 rotation, 4920 is 4 rotations
         final int TARGET_ARM_LOW_POSITION = 3150;
 
-        int targetArmPosition = TARGET_ARM_DOWN_POSITION;
+        secondaryArmGamepad = gamepad1;
 
         primaryArm.setPower(ARM_POWER);
         primaryArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        secondaryArmThread.setGamePad(gamepad1);
+        secondaryArmThread.start();
 
         while (opModeIsActive()) {
             checkScoreSpecimen();
@@ -49,20 +46,17 @@ public class SingleOpMode extends OpModeTools {
                 rightFront.setPower(rightFrontMotorPower * driveSpeed);
                 rightBack.setPower(rightBackMotorPower * driveSpeed);
 
-                if (!secondaryArmLongSequenceActivated) {
+                if (armTradeState != ArmTradeState.PASS && armTradeState != ArmTradeState.STOP) {
                     if (leftFrontMotorPower == 0 && leftBackMotorPower == 0 &&
                             rightFrontMotorPower == 0 && rightBackMotorPower == 0) {
                         if (gamepad1.dpad_up) {
                             targetArmPosition = TARGET_ARM_MEDIUM_POSITION;
-                            controller.moveSecondaryArm(SecondaryArmState.TOP);
                         } else if (gamepad1.dpad_down) {
                             targetArmPosition = TARGET_ARM_DOWN_POSITION;
                         } else if (gamepad1.dpad_left) {
                             targetArmPosition = TARGET_ARM_HIGH_POSITION;
-                            controller.moveSecondaryArm(SecondaryArmState.TOP);
                         } else if (gamepad1.dpad_right) {
                             targetArmPosition = TARGET_ARM_LOW_POSITION;
-                            controller.moveSecondaryArm(SecondaryArmState.TOP);
                         }
                     }
 
@@ -71,7 +65,7 @@ public class SingleOpMode extends OpModeTools {
                     clawLeft.setPosition(targetLeftClawPosition);
                     clawRight.setPosition(targetRightClawPosition);
 
-                    checkMoveClaw(gamepad1);
+                    checkMoveClaw();
                 }
             }
         }

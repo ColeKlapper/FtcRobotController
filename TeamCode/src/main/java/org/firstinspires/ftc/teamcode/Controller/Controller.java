@@ -5,10 +5,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 public class Controller {
-    public final int REST = 150;
-    public final int TOP = 290;
-    public final int PICK_UP = 550;
-
     private final double PULSES = 480;
     private final double WHEEL_CIRCUMFERENCE_METERS = 0.31;
     private final double PULSES_PER_METER = PULSES / WHEEL_CIRCUMFERENCE_METERS;
@@ -48,9 +44,9 @@ public class Controller {
         clawRight = hardwareMap.get(Servo.class, "clawRight");
         secondaryClaw = hardwareMap.get(Servo.class, "secondaryClaw");
 
-        moveArm(ArmState.DOWN);
         primaryArm.setPower(ARM_POWER);
         primaryArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        moveArm(ArmState.DOWN);
         moveSecondaryArm(SecondaryArmState.START);
         secondaryArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         secondaryArm.setPower(SECONDARY_ARM_SPEED);
@@ -60,7 +56,7 @@ public class Controller {
         clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
 
         setDcMotorMode(true);
-        moveSecondaryArm(SecondaryArmState.REST);
+        moveSecondaryArm(SecondaryArmState.TOP);
     }
 
     public Controller(DcMotor leftFrontDrive, DcMotor leftBackDrive, DcMotor rightFrontDrive,
@@ -76,7 +72,6 @@ public class Controller {
         this.clawRight = clawRight;
         this.secondaryClaw = secondaryClaw;
 
-        moveSecondaryArm(SecondaryArmState.REST);
     }
 
     public final void moveForward(double meters) {
@@ -167,9 +162,8 @@ public class Controller {
                 moveSecondaryArm(SecondaryArmState.TOP);
                 break;
             case DOWN:
+            default:
                 primaryArm.setTargetPosition(TARGET_ARM_DOWN_POSITION);
-                sleep(1500);
-                moveSecondaryArm(SecondaryArmState.REST);
                 break;
         }
 
@@ -177,9 +171,13 @@ public class Controller {
     }
 
     public final void moveSecondaryArm(SecondaryArmState armState) {
+        final int REST = 110;
+        final int TOP = 120;
+        final int PICK_UP = 516;
+
         switch (armState) {
             case PICK_UP:
-                secondaryArm.setTargetPosition(550);
+                secondaryArm.setTargetPosition(PICK_UP);
                 break;
             case REST:
                 secondaryArm.setTargetPosition(REST);
@@ -202,13 +200,12 @@ public class Controller {
         if (openClaw) {
             clawLeft.setPosition(LEFT_CLAW_OPEN_TARGET);
             clawRight.setPosition(RIGHT_CLAW_OPEN_TARGET);
-            openClaw = false;
         } else {
             clawLeft.setPosition(LEFT_CLAW_CLOSED_TARGET);
             clawRight.setPosition(RIGHT_CLAW_CLOSED_TARGET);
-            openClaw = true;
         }
 
+        openClaw = !openClaw;
         sleep(WAIT_TIME_CLAW);
     }
 
@@ -229,6 +226,11 @@ public class Controller {
             leftBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             leftFront.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
+            leftFront.setDirection(DcMotor.Direction.FORWARD);
+            leftBack.setDirection(DcMotor.Direction.FORWARD);
+            rightFront.setDirection(DcMotor.Direction.REVERSE);
+            rightBack.setDirection(DcMotor.Direction.REVERSE);
+
             leftBack.setPower(MOTOR_POWER);
             rightFront.setPower(MOTOR_POWER);
             leftFront.setPower(MOTOR_POWER);
@@ -246,11 +248,11 @@ public class Controller {
         moveArm(ArmState.MEDIUM);
         moveForward(0.1);
         moveArm(ArmState.HIGH);
-        changePrecisionMode(PrecisionMode.MOTORS);
-        moveBackward(0.6);
-        changePrecisionMode(PrecisionMode.MOTORS);
         moveClaw();
         moveArm(ArmState.DOWN);
+        sleep(1700);
+        moveSecondaryArm(SecondaryArmState.REST);
+        sleep(800);
     }
 
     public final void changePrecisionMode(PrecisionMode precisionMode) {
@@ -278,26 +280,6 @@ public class Controller {
                 rightBack.setPower(motorPower);
 
                 break;
-        }
-    }
-
-    public final void changePrecisionMode() {
-        double motorPower = MOTOR_POWER;
-
-        if (leftFront.getPower() == MOTOR_POWER && rightFront.getPower() == MOTOR_POWER &&
-                leftBack.getPower() == MOTOR_POWER && rightBack.getPower() == MOTOR_POWER) {
-            motorPower = PRECISION_MOTOR_POWER;
-        }
-
-        leftFront.setPower(motorPower);
-        rightFront.setPower(motorPower);
-        leftBack.setPower(motorPower);
-        rightBack.setPower(motorPower);
-
-        if (primaryArm.getPower() == ARM_POWER) {
-            primaryArm.setPower(PRECISION_ARM_POWER);
-        } else {
-            primaryArm.setPower(ARM_POWER);
         }
     }
 
